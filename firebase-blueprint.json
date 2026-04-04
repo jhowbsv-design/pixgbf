@@ -1,0 +1,181 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with roles (ADM, PROMOTOR, CAIXA)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "usuario": { "type": "string", "description": "Login único" },
+        "senha_hash": { "type": "string" },
+        "tipo": { "type": "string", "enum": ["ADM", "PROMOTOR", "CAIXA"] },
+        "empresa_id": { "type": "string" },
+        "grupo_empresa_id": { "type": "string" },
+        "ativo": { "type": "boolean" },
+        "ultimo_login": { "type": "string", "format": "date-time" },
+        "tentativas_login": { "type": "integer" },
+        "bloqueado_ate": { "type": "string", "format": "date-time" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nome", "usuario", "senha_hash", "tipo", "ativo"]
+    },
+    "LoginLog": {
+      "title": "LoginLog",
+      "description": "Audit log for login attempts",
+      "type": "object",
+      "properties": {
+        "usuario": { "type": "string" },
+        "data_hora": { "type": "string", "format": "date-time" },
+        "ip": { "type": "string" },
+        "dispositivo": { "type": "string" },
+        "sucesso": { "type": "boolean" },
+        "detalhes": { "type": "string" }
+      },
+      "required": ["usuario", "data_hora", "sucesso"]
+    },
+    "Bank": {
+      "title": "Bank",
+      "description": "Bank details for PIX",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "pixKey": { "type": "string" },
+        "pixKeyType": { "type": "string", "enum": ["CPF", "CNPJ", "EMAIL", "TELEFONE", "ALEATORIA"] },
+        "active": { "type": "boolean" },
+        "logoUrl": { "type": "string", "description": "URL or base64 of the bank logo" },
+        "empresa_id": { "type": "string" },
+        "grupo_empresa_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "pixKey", "pixKeyType", "active", "created_at", "updated_at"]
+    },
+    "PixRecord": {
+      "title": "PixRecord",
+      "description": "PIX registration record",
+      "type": "object",
+      "properties": {
+        "valor": { "type": "number" },
+        "data_pix": { "type": "string", "format": "date-time" },
+        "cliente": { "type": "string" },
+        "depositante": { "type": "string" },
+        "promotor": { "type": "string" },
+        "promotor_id": { "type": "string" },
+        "empresa": { "type": "string" },
+        "empresa_id": { "type": "string" },
+        "grupo_empresa_id": { "type": "string" },
+        "cpf_cliente": { "type": "string" },
+        "banco_id": { "type": "string" },
+        "banco_nome": { "type": "string" },
+        "banco_chave": { "type": "string" },
+        "banco_tipo_chave": { "type": "string", "enum": ["CPF", "CNPJ", "EMAIL", "TELEFONE", "ALEATORIA"] },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled", "launched"] },
+        "observacoes": { "type": "string" },
+        "comprovante_url": { "type": "string" },
+        "confirmed_at": { "type": "string", "format": "date-time" },
+        "confirmed_by": { "type": "string" },
+        "confirmed_by_id": { "type": "string" },
+        "cash_launched_at": { "type": "string", "format": "date-time" },
+        "cash_launched_by": { "type": "string" },
+        "cash_launched_by_id": { "type": "string" },
+        "justification": { "type": "string" },
+        "old_valor": { "type": "number" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["valor", "data_pix", "cliente", "depositante", "promotor", "empresa_id", "banco_id", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "System audit logs",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "empresa_id": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "action", "timestamp"]
+    },
+    "Draw": {
+      "title": "Draw",
+      "description": "Advanced draw history",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "filters": {
+          "type": "object",
+          "properties": {
+            "startDate": { "type": "string", "format": "date-time" },
+            "endDate": { "type": "string", "format": "date-time" },
+            "startConfirmDate": { "type": "string", "format": "date-time" },
+            "endConfirmDate": { "type": "string", "format": "date-time" },
+            "minValue": { "type": "number" },
+            "empresaId": { "type": "string" },
+            "winnersCount": { "type": "number" }
+          }
+        },
+        "participantsCount": { "type": "number" },
+        "participantsIds": { "type": "array", "items": { "type": "string" } },
+        "winners": { "type": "array", "items": { "type": "object" } },
+        "createdBy": { "type": "string" },
+        "createdById": { "type": "string" },
+        "empresa_id": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "winners", "createdBy", "createdById", "timestamp"]
+    },
+    "TVState": {
+      "title": "TVState",
+      "description": "Global state for TV Mode panel",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["idle", "drawing", "result"] },
+        "drawId": { "type": "string" },
+        "participantsNames": { "type": "array", "items": { "type": "string" } },
+        "winners": { "type": "array", "items": { "type": "object" } },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["status", "timestamp"]
+    },
+    "Empresa": {
+      "title": "Empresa",
+      "description": "Company details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "active": { "type": "boolean" },
+        "grupo_empresa_id": { "type": "string" }
+      },
+      "required": ["name", "active"]
+    },
+    "BusinessGroup": {
+      "title": "BusinessGroup",
+      "description": "Business group details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "active": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "active", "created_at"]
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "User profiles" },
+    "login_logs": { "schema": "LoginLog", "description": "Login audit logs" },
+    "banks": { "schema": "Bank", "description": "Available banks" },
+    "pix_records": { "schema": "PixRecord", "description": "PIX records" },
+    "audit_logs": { "schema": "AuditLog", "description": "System logs" },
+    "draws": { "schema": "Draw", "description": "Draw history" },
+    "tv_state": { "schema": "TVState", "description": "Global TV Mode state" },
+    "empresas": { "schema": "Empresa", "description": "Companies" },
+    "business_groups": { "schema": "BusinessGroup", "description": "Business groups" }
+  }
+}

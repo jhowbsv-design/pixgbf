@@ -1,0 +1,154 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: business_groups
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required) - Group name
+    //   - active: boolean (required) - Status
+    //   - created_at: string (required, ISO 8601) - Creation date
+    //
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && (
+        (request.auth.token.email == "sistemasgbf@gmail.com" && request.auth.token.email_verified == true) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         "role" in getUserData() && getUserData().role == 'admin' && 
+         "active" in getUserData() && getUserData().active == true)
+      );
+    }
+    
+    function isActive() {
+      return isAuthenticated() && (
+        (request.auth.token.email == "sistemasgbf@gmail.com" && request.auth.token.email_verified == true) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         "active" in getUserData() && getUserData().active == true)
+      );
+    }
+    
+    function isPromoter() {
+      return isActive() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             "role" in getUserData() && getUserData().role == 'promoter';
+    }
+    
+    function isCashier() {
+      return isActive() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             "role" in getUserData() && getUserData().role == 'cashier';
+    }
+
+    function sameCompany(data) {
+      return isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+                           "empresa_id" in getUserData() && "empresa_id" in data && 
+                           data.empresa_id == getUserData().empresa_id);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAuthenticated() && (
+        isAdmin() || 
+        (request.query.limit <= 10 && (
+          (request.auth.token.email != null && request.query.filters.email == request.auth.token.email) ||
+          (request.auth.token.phone_number != null && request.query.filters.phoneNumber == request.auth.token.phone_number)
+        ))
+      );
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (request.auth.uid == userId && 
+         request.resource.data.role == resource.data.role && 
+         request.resource.data.active == resource.data.active &&
+         request.resource.data.company == resource.data.company)
+      );
+      allow delete: if isAuthenticated() && (
+        isAdmin() || 
+        (
+          (
+            (resource.data.email != null && resource.data.email == request.auth.token.email) || 
+            (resource.data.phoneNumber != null && resource.data.phoneNumber == request.auth.token.phone_number)
+          ) && resource.data.isPreRegistered == true
+        )
+      );
+    }
+
+    match /banks/{bankId} {
+      allow read: if isActive() && sameCompany(resource.data);
+      allow write: if isAdmin();
+    }
+
+    match /pix_records/{recordId} {
+      allow read: if isActive() && (
+        isAdmin() || 
+        (isPromoter() && resource.data.promotor_id == request.auth.uid) ||
+        (isCashier() && resource.data.empresa_id == getUserData().empresa_id && (resource.data.status == 'confirmed' || resource.data.status == 'launched'))
+      );
+      allow create: if isActive() && (
+        (isPromoter() && "empresa_id" in getUserData() && request.resource.data.empresa_id == getUserData().empresa_id) ||
+        isAdmin()
+      ) && request.resource.data.status == 'pending';
+      allow update: if isActive() && (
+        isAdmin() || 
+        (isPromoter() && resource.data.promotor_id == request.auth.uid && resource.data.status == 'pending' && 
+         request.resource.data.status == 'pending' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['valor', 'data_pix', 'cliente', 'depositante', 'cpf_cliente', 'banco_id', 'banco_nome', 'banco_chave', 'banco_tipo_chave', 'observacoes', 'comprovante_url', 'updated_at'])) ||
+        (isCashier() && resource.data.empresa_id == getUserData().empresa_id && resource.data.status == 'confirmed' &&
+         request.resource.data.status == 'launched' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cash_launched_at', 'cash_launched_by', 'updated_at']))
+      );
+      allow delete: if false;
+    }
+
+    match /empresas/{empresaId} {
+      allow read: if isActive();
+      allow write: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isActive();
+      allow delete: if false;
+    }
+
+    match /login_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if true; // Allow logging even before full auth if needed, or restrict to system
+      allow delete: if false;
+    }
+
+    match /settings/tv_state {
+      allow read: if isActive();
+      allow write: if isAdmin();
+    }
+
+    match /draws/{drawId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /business_groups/{groupId} {
+      allow read: if isActive();
+      allow write: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+  }
+}

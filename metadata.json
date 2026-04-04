@@ -1,0 +1,7 @@
+{
+  "name": "SmartPix",
+  "description": "Professional PIX management system with admin validation, cashier control, thermal printing, and advanced draws.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
