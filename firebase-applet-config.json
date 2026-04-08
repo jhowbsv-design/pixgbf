@@ -1,10 +1,10 @@
 {
-  "projectId": "gen-lang-client-0965452318",
+  "projectId": "sistema-de-cad-e-cont-de-pix",
   "appId": "1:29679922943:web:5e6824e5a36cc0d91726ca",
   "apiKey": "AIzaSyDTYnZAtPY2I4CHIWu4pgl-UV8gsTgqOZQ",
-  "authDomain": "gen-lang-client-0965452318.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-66f90bf1-430a-4858-a4e3-c319904c1bee",
-  "storageBucket": "gen-lang-client-0965452318.firebasestorage.app",
+  "authDomain": "sistema-de-cad-e-cont-de-pix.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "sistema-de-cad-e-cont-de-pix.firebasestorage.app",
   "messagingSenderId": "29679922943",
   "measurementId": ""
 }

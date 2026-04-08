@@ -32,8 +32,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "gbf-smartpix-secret-2026";
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 3000; //Coloquei isso.
-  //const PORT = 3000; estava assim antes.
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
 
