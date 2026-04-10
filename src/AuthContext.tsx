@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
-import { UserProfile, UserRole } from './types';
+import { UserProfile } from './types';
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -22,8 +22,10 @@ const AuthContext = createContext<AuthContextType>({
   isCashier: false,
 });
 
+// Retorna o contexto de autenticação para qualquer componente da aplicação.
 export const useAuth = () => useContext(AuthContext);
 
+// Inicializa e distribui o estado global de autenticação e perfil do usuário.
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);

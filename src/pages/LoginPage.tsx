@@ -1,12 +1,14 @@
 // Tela de login do sistema
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "../components/ui/Button";
 
 // Página de login
+// Renderiza a pagina de login simplificada usada para autenticar o usuario.
 export function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   // Função de login
+  // Envia usuario e senha para a API e controla o estado de carregamento do formulario.
   const handleLogin = async (e: any) => {
     e.preventDefault();
     setLoading(true);

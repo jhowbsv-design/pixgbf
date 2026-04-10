@@ -6,15 +6,13 @@ import {
   FacebookAuthProvider,
   OAuthProvider,
   signOut, 
-  onAuthStateChanged, 
-  User as FirebaseUser,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   signInWithCustomToken,
   setPersistence,
   browserLocalPersistence
 } from 'firebase/auth';
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, onSnapshot, query, where, orderBy, getDocFromServer, Timestamp } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
@@ -53,6 +51,7 @@ export interface FirestoreErrorInfo {
   }
 }
 
+// Padroniza erros do Firestore com contexto da operação e do usuário autenticado.
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
@@ -76,7 +75,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Test connection
+// Faz uma leitura simples para validar a conexão inicial com o Firestore.
 async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
@@ -92,10 +91,14 @@ const googleProvider = new GoogleAuthProvider();
 const facebookProvider = new FacebookAuthProvider();
 const appleProvider = new OAuthProvider('apple.com');
 
+// Inicia autenticação com Google por popup.
 export const signIn = () => signInWithPopup(auth, googleProvider);
+// Inicia autenticação com Facebook por popup.
 export const signInWithFacebook = () => signInWithPopup(auth, facebookProvider);
+// Inicia autenticação com Apple por popup.
 export const signInWithApple = () => signInWithPopup(auth, appleProvider);
 
 export { RecaptchaVerifier, signInWithPhoneNumber, signInWithCustomToken };
 
+// Encerra a sessão do usuário autenticado.
 export const logOut = () => signOut(auth);

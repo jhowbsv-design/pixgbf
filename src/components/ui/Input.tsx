@@ -1,6 +1,6 @@
 // Componente de input com label
-import React from "react";
 
+// Renderiza um campo de entrada simples com label acima do input.
 export function Input({ label, ...props }: any) {
   return (
     <div>

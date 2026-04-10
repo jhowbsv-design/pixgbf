@@ -1,10 +1,8 @@
-import express from "express";
+﻿import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
-import admin from "firebase-admin";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { getAuth } from "firebase-admin/auth";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import fs from "fs";
@@ -26,14 +24,12 @@ try {
 
 const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
 db.settings({ ignoreUndefinedProperties: true });
-const auth = getAuth(app);
 console.log("Firestore initialized with database ID:", firebaseConfig.firestoreDatabaseId || "(default)");
 const JWT_SECRET = process.env.JWT_SECRET || "gbf-smartpix-secret-2026";
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 3000; //Coloquei isso.
-  //const PORT = 3000; estava assim antes.
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
 
@@ -42,13 +38,13 @@ async function startServer() {
     const { nome, usuario, senha, tipo, empresa_id } = req.body;
 
     if (!nome || !usuario || !senha || !tipo) {
-      return res.status(400).json({ error: "Campos obrigatórios ausentes" });
+      return res.status(400).json({ error: "Campos obrigatÃ³rios ausentes" });
     }
 
     try {
       const existing = await db.collection("users").where("usuario", "==", usuario).get();
       if (!existing.empty) {
-        return res.status(400).json({ error: "Usuário já existe" });
+        return res.status(400).json({ error: "UsuÃ¡rio jÃ¡ existe" });
       }
 
       const senha_hash = await bcrypt.hash(senha, 10);
@@ -68,7 +64,7 @@ async function startServer() {
       };
 
       const docRef = await db.collection("users").add(newUser);
-      res.json({ id: docRef.id, success: true, message: "Cadastro realizado com sucesso! Aguarde a ativação pelo administrador." });
+      res.json({ id: docRef.id, success: true, message: "Cadastro realizado com sucesso! Aguarde a ativaÃ§Ã£o pelo administrador." });
 
     } catch (error) {
       console.error("Registration error:", error);
@@ -82,15 +78,15 @@ async function startServer() {
     const dispositivo = req.headers["user-agent"];
 
     if (!usuario || !senha) {
-      return res.status(400).json({ error: "Usuário e senha são obrigatórios" });
+      return res.status(400).json({ error: "UsuÃ¡rio e senha sÃ£o obrigatÃ³rios" });
     }
 
     try {
       const userSnap = await db.collection("users").where("usuario", "==", usuario).limit(1).get();
       
       if (userSnap.empty) {
-        await logLogin(usuario, false, "Usuário não encontrado", ip, dispositivo);
-        return res.status(401).json({ error: "Credenciais inválidas" });
+        await logLogin(usuario, false, "UsuÃ¡rio nÃ£o encontrado", ip, dispositivo);
+        return res.status(401).json({ error: "Credenciais invÃ¡lidas" });
       }
 
       const userDoc = userSnap.docs[0];
@@ -98,16 +94,16 @@ async function startServer() {
 
       // Check if active
       if (!userData.ativo) {
-        await logLogin(usuario, false, "Usuário inativo", ip, dispositivo);
-        return res.status(403).json({ error: "Usuário inativo" });
+        await logLogin(usuario, false, "UsuÃ¡rio inativo", ip, dispositivo);
+        return res.status(403).json({ error: "UsuÃ¡rio inativo" });
       }
 
       // Check if blocked
       if (userData.bloqueado_ate) {
         const blockedUntil = new Date(userData.bloqueado_ate);
         if (blockedUntil > new Date()) {
-          await logLogin(usuario, false, "Usuário bloqueado temporariamente", ip, dispositivo);
-          return res.status(403).json({ error: `Usuário bloqueado até ${blockedUntil.toLocaleString()}` });
+          await logLogin(usuario, false, "UsuÃ¡rio bloqueado temporariamente", ip, dispositivo);
+          return res.status(403).json({ error: `UsuÃ¡rio bloqueado atÃ© ${blockedUntil.toLocaleString()}` });
         }
       }
 
@@ -125,7 +121,7 @@ async function startServer() {
 
         await userDoc.ref.update(updates);
         await logLogin(usuario, false, "Senha incorreta", ip, dispositivo);
-        return res.status(401).json({ error: "Credenciais inválidas" });
+        return res.status(401).json({ error: "Credenciais invÃ¡lidas" });
       }
 
       // Success
@@ -138,14 +134,19 @@ async function startServer() {
       await logLogin(usuario, true, "Sucesso", ip, dispositivo);
 
       // Generate Firebase Custom Token
-      const customToken = await auth.createCustomToken(userDoc.id, {
-        tipo: userData.tipo,
-        empresa_id: userData.empresa_id,
-        grupo_empresa_id: userData.grupo_empresa_id
-      });
+      const token = jwt.sign(
+        {
+          id: userDoc.id,
+          tipo: userData.tipo,
+          empresa_id: userData.empresa_id,
+          grupo_empresa_id: userData.grupo_empresa_id
+        },
+        JWT_SECRET,
+          { expiresIn: "1d" }
+      );
 
       res.json({ 
-        token: customToken, 
+        token, 
         user: {
           id: userDoc.id,
           nome: userData.nome,
@@ -168,17 +169,17 @@ async function startServer() {
     const authHeader = req.headers.authorization;
 
     if (!nome || !usuario || !senha || !tipo) {
-      return res.status(400).json({ error: "Campos obrigatórios ausentes (nome, usuario, senha, tipo)" });
+      return res.status(400).json({ error: "Campos obrigatÃ³rios ausentes (nome, usuario, senha, tipo)" });
     }
 
-    if (!authHeader) return res.status(401).json({ error: "Não autorizado" });
+    if (!authHeader) return res.status(401).json({ error: "NÃ£o autorizado" });
     
     try {
       const decoded: any = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
       if (decoded.tipo !== "ADM") return res.status(403).json({ error: "Acesso negado" });
 
       const existing = await db.collection("users").where("usuario", "==", usuario).get();
-      if (!existing.empty) return res.status(400).json({ error: "Usuário já existe" });
+      if (!existing.empty) return res.status(400).json({ error: "UsuÃ¡rio jÃ¡ existe" });
 
       const senha_hash = await bcrypt.hash(senha, 10);
       const newUser = {
@@ -198,7 +199,7 @@ async function startServer() {
       res.json({ id: docRef.id, ...newUser, senha_hash: undefined });
 
     } catch (error) {
-      res.status(401).json({ error: "Sessão inválida" });
+      res.status(401).json({ error: "SessÃ£o invÃ¡lida" });
     }
   });
 
@@ -207,12 +208,12 @@ async function startServer() {
     const { nome, senha, tipo, empresa_id, grupo_empresa_id, ativo } = req.body;
 
     if (!id) {
-      return res.status(400).json({ error: "ID do usuário é obrigatório" });
+      return res.status(400).json({ error: "ID do usuÃ¡rio Ã© obrigatÃ³rio" });
     }
 
     const authHeader = req.headers.authorization;
 
-    if (!authHeader) return res.status(401).json({ error: "Não autorizado" });
+    if (!authHeader) return res.status(401).json({ error: "NÃ£o autorizado" });
 
     try {
       const decoded: any = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
@@ -232,7 +233,7 @@ async function startServer() {
       res.json({ success: true });
 
     } catch (error) {
-      res.status(401).json({ error: "Sessão inválida" });
+      res.status(401).json({ error: "SessÃ£o invÃ¡lida" });
     }
   });
 
@@ -268,3 +269,4 @@ async function startServer() {
 }
 
 startServer();
+

@@ -7,6 +7,7 @@ type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 // Componente botão
+// Renderiza um botao reutilizavel com variacao visual primaria ou secundaria.
 export function Button({ variant = "primary", ...props }: Props) {
   const style =
     variant === "primary"

@@ -1,5 +1,6 @@
 // Serviço responsável por autenticação
 
+// Envia as credenciais para o backend e retorna os dados da autenticacao.
 export async function login(username: string, password: string) {
   // Faz requisição para o backend
   const response = await fetch("/api/login", {

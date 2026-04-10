@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
-import { logOut, db, auth, handleFirestoreError, OperationType, signInWithCustomToken } from './firebase';
-import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, setDoc, doc, where, Timestamp, deleteDoc } from 'firebase/firestore';
+import { db, auth, handleFirestoreError, OperationType, signInWithCustomToken } from './firebase';
+import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, setDoc, doc, where, deleteDoc } from 'firebase/firestore';
 import { PixRecord, Bank, PixStatus, UserProfile, AuditLog, Draw, Empresa, TVState, BusinessGroup } from './types';
 import { format, startOfDay, endOfDay, isWithinInterval, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -13,12 +13,10 @@ import {
   PlusCircle, 
   CheckCircle2, 
   XCircle, 
-  History, 
   Settings, 
   Printer, 
   LogOut, 
   Search, 
-  Filter, 
   Download, 
   Trophy, 
   AlertCircle,
@@ -47,6 +45,7 @@ import jsPDF from 'jspdf';
 
 // --- COMPONENTS ---
 
+// Exibe relogio e data atualizados em tempo real na interface.
 const RealTimeClock = ({ className }: { className?: string }) => {
   const [time, setTime] = useState(new Date());
 
@@ -65,6 +64,7 @@ const RealTimeClock = ({ className }: { className?: string }) => {
   );
 };
 
+// Renderiza um botao local com variacoes visuais usadas ao longo da tela principal.
 const Button = ({ className, variant = 'primary', ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success' }) => {
   const variants = {
     primary: 'bg-blue-600 text-white hover:bg-blue-700',
@@ -82,6 +82,7 @@ const Button = ({ className, variant = 'primary', ...props }: React.ButtonHTMLAt
   );
 };
 
+// Renderiza um campo de entrada padronizado com label e mensagem de erro.
 const Input = ({ className, label, error, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string, error?: string }) => (
   <div className="flex flex-col gap-1.5 w-full">
     {label && <label className="text-sm font-medium text-gray-700">{label}</label>}
@@ -93,6 +94,7 @@ const Input = ({ className, label, error, ...props }: React.InputHTMLAttributes<
   </div>
 );
 
+// Renderiza um select padronizado com opcoes dinamicas e tratamento visual de erro.
 const Select = ({ className, label, options, error, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string, options: { value: string, label: string }[], error?: string }) => (
   <div className="flex flex-col gap-1.5 w-full">
     {label && <label className="text-sm font-medium text-gray-700">{label}</label>}
@@ -107,6 +109,7 @@ const Select = ({ className, label, options, error, ...props }: React.SelectHTML
   </div>
 );
 
+// Encapsula blocos da interface em um card reutilizavel com cabecalho opcional.
 const Card = ({ children, className, title, subtitle, onClick }: { children: React.ReactNode, className?: string, title?: string, subtitle?: string, onClick?: () => void }) => (
   <div className={cn('bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden', className)} onClick={onClick}>
     {(title || subtitle) && (
@@ -119,6 +122,7 @@ const Card = ({ children, className, title, subtitle, onClick }: { children: Rea
   </div>
 );
 
+// Exibe um selo visual para status e informacoes curtas.
 const Badge = ({ children, variant = 'default' }: { children: React.ReactNode, variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' }) => {
   const variants = {
     default: 'bg-gray-100 text-gray-700',
@@ -132,6 +136,7 @@ const Badge = ({ children, variant = 'default' }: { children: React.ReactNode, v
 
 // --- PRINT COMPONENT ---
 
+// Monta o layout do comprovante termico usado na impressao de um registro PIX.
 const ThermalPrint = React.forwardRef<HTMLDivElement, { record: PixRecord, bankName: string }>(({ record, bankName }, ref) => (
   <div ref={ref} className="p-4 bg-white text-black font-mono text-[10px] leading-tight w-[58mm] mx-auto uppercase">
     <div className="text-center font-bold mb-2 border-b border-dashed border-black pb-1">GBF SMARTPIX</div>
@@ -161,6 +166,7 @@ const ThermalPrint = React.forwardRef<HTMLDivElement, { record: PixRecord, bankN
 
 import { Toaster, toast } from 'sonner';
 
+// Oculta parte do CPF para exibir dados sensiveis com seguranca no painel.
 const maskCPF = (cpf?: string) => {
   if (!cpf) return '***.xxx.xxx-**';
   const clean = cpf.replace(/\D/g, '');
@@ -168,6 +174,7 @@ const maskCPF = (cpf?: string) => {
   return `${clean.substring(0, 3)}.xxx.xxx-${clean.substring(9)}`;
 };
 
+// Renderiza o painel de TV usado para acompanhar sorteios em tela cheia.
 const TVView = ({ state }: { state: TVState | null }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [displayStatus, setDisplayStatus] = useState<'idle' | 'drawing' | 'result'>('idle');
@@ -333,6 +340,7 @@ const TVView = ({ state }: { state: TVState | null }) => {
 
 // --- MAIN APP ---
 
+// Controla autenticacao, dados em tempo real e a navegacao principal da aplicacao.
 function AppContent() {
   const { user, profile, loading, isAdmin, isPromoter, isCashier } = useAuth();
   const [activeTab, setActiveTab] = useState<'home' | 'dashboard' | 'pix' | 'banks' | 'users' | 'reports' | 'draws' | 'hist_draws' | 'logs' | 'empresas' | 'cadastrar_pix' | 'tv'>('home');
@@ -470,6 +478,7 @@ function AppContent() {
     };
   }, [user, profile, isAdmin, isPromoter, isCashier]);
 
+  // Registra eventos importantes da aplicacao na colecao de auditoria.
   const logAction = async (action: string, details: string) => {
     if (!user) return;
     await addDoc(collection(db, 'audit_logs'), {
@@ -493,6 +502,7 @@ function AppContent() {
   }
 
   if (!user) {
+    // Envia usuario e senha para a rota de login e autentica com token customizado.
     const handleCustomLogin = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       setLoginLoading(true);
@@ -519,6 +529,7 @@ function AppContent() {
       }
     };
 
+    // Envia o formulario de cadastro para criar um novo acesso no sistema.
     const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       setRegisterLoading(true);
@@ -563,23 +574,77 @@ function AppContent() {
               <h1 className="text-3xl font-bold text-gray-900 tracking-tight">GBF SmartPix</h1>
               <p className="text-gray-500 mt-1 font-medium">Sistema Profissional de Gestão de PIX</p>
             </div>
-             <button
+
+            <div className="flex rounded-xl bg-gray-100 p-1">
+              <button
+                type="button"
                 onClick={() => setLoginMode('custom')}
                 className={cn(
-                  "flex-1 py-2 text-sm font-medium rounded-md transition-all",
-                  (loginMode === 'custom' || loginMode === 'register') ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  'flex-1 py-2 text-sm font-medium rounded-lg transition-all',
+                  loginMode === 'custom' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 )}
               >
                 Login Interno
               </button>
+              <button
+                type="button"
+                onClick={() => setLoginMode('register')}
+                className={cn(
+                  'flex-1 py-2 text-sm font-medium rounded-lg transition-all',
+                  loginMode === 'register' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                )}
+              >
+                Cadastro
+              </button>
             </div>
+
+            {loginMode === 'custom' ? (
+              <form onSubmit={handleCustomLogin} className="space-y-4 text-left">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <UserCircle size={16} /> Usuário
+                  </label>
+                  <input
+                    name="username"
+                    type="text"
+                    required
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    placeholder="Digite seu usuário"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Lock size={16} /> Senha
+                  </label>
+                  <input
+                    name="senha"
+                    type="password"
+                    required
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    placeholder="Digite sua senha"
+                  />
+                </div>
+                <Button type="submit" disabled={loginLoading} className="w-full h-12 text-lg">
+                  {loginLoading ? 'Entrando...' : 'Entrar'}
+                </Button>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setLoginMode('register')}
+                    className="text-sm text-blue-600 hover:underline font-medium"
+                  >
+                    Não tem uma conta? Faça seu cadastro
+                  </button>
+                </div>
+              </form>
+            ) : (
               <form onSubmit={handleRegister} className="space-y-4 text-left">
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                     <UserCircle size={16} /> Nome Completo
                   </label>
                   <input
-                    name="username"
+                    name="nome"
                     type="text"
                     required
                     className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -589,10 +654,9 @@ function AppContent() {
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                     <UserCircle size={16} /> Usuário
-                  </label> 
-                    <input
-                    // alterei aqui
-                    name="username" 
+                  </label>
+                  <input
+                    name="usuario"
                     type="text"
                     required
                     className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -604,8 +668,7 @@ function AppContent() {
                     <Lock size={16} /> Senha
                   </label>
                   <input
-                  // alterei aqui
-                    name="password"
+                    name="senha"
                     type="password"
                     required
                     className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -625,11 +688,27 @@ function AppContent() {
                     <option value="cashier">Caixa</option>
                   </select>
                 </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Building2 size={16} /> Empresa
+                  </label>
+                  <select
+                    name="empresa_id"
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white"
+                  >
+                    <option value="">Selecione a empresa</option>
+                    {empresas.map((empresa) => (
+                      <option key={empresa.id} value={empresa.id}>
+                        {empresa.name || empresa.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <Button type="submit" disabled={registerLoading} className="w-full h-12 text-lg">
-                  {registerLoading ? "Cadastrando..." : "Realizar Cadastro"}
+                  {registerLoading ? 'Cadastrando...' : 'Realizar Cadastro'}
                 </Button>
                 <div className="text-center">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setLoginMode('custom')}
                     className="text-sm text-blue-600 hover:underline font-medium"
@@ -639,7 +718,7 @@ function AppContent() {
                 </div>
               </form>
             )}
-            
+
             <div className="pt-4 border-t border-gray-100">
               <p className="text-[10px] text-gray-400 uppercase tracking-widest">© 2026 GBF SmartPix • V 2.5.0</p>
             </div>
@@ -675,6 +754,7 @@ function AppContent() {
     );
   }
 
+  // Renderiza cada item de navegacao do menu superior e lateral.
   const NavItem = ({ tab, icon: Icon, label, badge }: { tab: typeof activeTab, icon: any, label: string, badge?: number }) => (
     <button
       onClick={() => { setActiveTab(tab); setPixFilterStatus(''); }}
@@ -850,6 +930,7 @@ function AppContent() {
 
 // --- VIEW COMPONENTS ---
 
+// Exibe a tela inicial com atalhos rapidos conforme o perfil do usuario.
 const HomeView = ({ profile, pendingCount, onNavigate }: { profile: UserProfile | null, pendingCount: number, onNavigate: (tab: any) => void }) => {
   const { isAdmin, isPromoter, isCashier } = useAuth();
   
@@ -901,6 +982,7 @@ const HomeView = ({ profile, pendingCount, onNavigate }: { profile: UserProfile 
   );
 };
 
+// Renderiza os botoes de acesso rapido mostrados na pagina inicial.
 const HomeButton = ({ icon: Icon, label, color, onClick }: { icon: any, label: string, color: string, onClick: () => void }) => {
   const colors: any = {
     blue: 'bg-blue-600',
@@ -923,9 +1005,11 @@ const HomeButton = ({ icon: Icon, label, color, onClick }: { icon: any, label: s
   );
 };
 
+// Exibe o formulario principal de cadastro de novos registros PIX.
 const CadastrarPixView = ({ banks, empresas, profile, onSuccess }: { banks: Bank[], empresas: Empresa[], profile: UserProfile | null, onSuccess: () => void }) => {
   const [loading, setLoading] = useState(false);
 
+  // Salva um novo registro PIX com os dados preenchidos no formulario.
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -1031,6 +1115,7 @@ const CadastrarPixView = ({ banks, empresas, profile, onSuccess }: { banks: Bank
   );
 };
 
+// Consolida indicadores, atalhos e ultimos movimentos no dashboard principal.
 const DashboardView = ({ pixRecords, banks, users, onNavigate }: { pixRecords: PixRecord[], banks: Bank[], users: UserProfile[], onNavigate: (tab: any, status?: PixStatus | '') => void }) => {
   const { profile, isPromoter } = useAuth();
   
@@ -1133,6 +1218,7 @@ const DashboardView = ({ pixRecords, banks, users, onNavigate }: { pixRecords: P
   );
 };
 
+// Resume visualmente um registro PIX para listas e cards de destaque.
 const PixCard = ({ record, bankName, bankLogoUrl }: { record: PixRecord, bankName?: string, bankLogoUrl?: string }) => {
   return (
     <Card className="p-6 hover:shadow-md transition-shadow">
@@ -1182,6 +1268,7 @@ const PixCard = ({ record, bankName, bankLogoUrl }: { record: PixRecord, bankNam
   );
 };
 
+// Exibe indicadores numericos com icone e suporte a clique para navegacao.
 const StatCard = ({ title, value, icon: Icon, color, onClick, className }: { title: string, value: string | number, icon: any, color: string, onClick?: () => void, className?: string }) => {
   const colors: any = {
     yellow: 'bg-yellow-100 text-yellow-600',
@@ -1202,6 +1289,7 @@ const StatCard = ({ title, value, icon: Icon, color, onClick, className }: { tit
   );
 };
 
+// Lista, filtra e permite operar registros PIX ja cadastrados no sistema.
 const PixRecordsView = ({ pixRecords, banks, onPrint, initialStatus }: { pixRecords: PixRecord[], banks: Bank[], onPrint: (record: PixRecord) => void, initialStatus?: PixStatus | '' }) => {
   const { profile, isAdmin, isPromoter, isCashier } = useAuth();
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -1261,6 +1349,7 @@ const PixRecordsView = ({ pixRecords, banks, onPrint, initialStatus }: { pixReco
 
   const uniquePromoters = Array.from(new Set(pixRecords.map(r => r.promotor))).filter(Boolean).sort();
 
+  // Cria um novo registro PIX a partir do modal rapido da listagem.
   const handleSavePix = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -1290,6 +1379,7 @@ const PixRecordsView = ({ pixRecords, banks, onPrint, initialStatus }: { pixReco
     }
   };
 
+  // Atualiza status e metadados de um registro apos acao operacional.
   const updateStatus = async (record: PixRecord, newStatus: PixStatus, extra: any = {}) => {
     try {
       await updateDoc(doc(db, 'pix_records', record.id), {
@@ -1816,10 +1906,12 @@ const PixRecordsView = ({ pixRecords, banks, onPrint, initialStatus }: { pixReco
   );
 };
 
+// Permite cadastrar, editar e ativar ou desativar bancos disponiveis.
 const BanksView = ({ banks, onLog }: { banks: Bank[], onLog: (a: string, d: string) => void }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBank, setEditingBank] = useState<Bank | null>(null);
 
+  // Salva um novo banco ou atualiza um banco existente.
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -1846,6 +1938,7 @@ const BanksView = ({ banks, onLog }: { banks: Bank[], onLog: (a: string, d: stri
     }
   };
 
+  // Alterna o status de ativacao de um banco ja cadastrado.
   const toggleBank = async (bank: Bank) => {
     await updateDoc(doc(db, 'banks', bank.id), { active: !bank.active });
     onLog('Banco Status Alterado', `Banco ${bank.name} ${!bank.active ? 'ativado' : 'desativado'}.`);
@@ -1939,6 +2032,7 @@ const BanksView = ({ banks, onLog }: { banks: Bank[], onLog: (a: string, d: stri
   );
 };
 
+// Gerencia aprovacao, cadastro e manutencao de acessos dos usuarios.
 const UsersView = ({ users, empresas, onLog }: { users: UserProfile[], empresas: Empresa[], onLog: (a: string, d: string) => void }) => {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
@@ -1946,6 +2040,7 @@ const UsersView = ({ users, empresas, onLog }: { users: UserProfile[], empresas:
   const pendingUsers = users.filter(u => !u.active);
   const activeUsers = users.filter(u => u.active);
 
+  // Atualiza perfil, empresa e status de acesso de um usuario selecionado.
   const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingUser) return;
@@ -1967,6 +2062,7 @@ const UsersView = ({ users, empresas, onLog }: { users: UserProfile[], empresas:
     }
   };
 
+  // Cadastra um usuario previamente configurado direto pelo painel administrativo.
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -2003,6 +2099,7 @@ const UsersView = ({ users, empresas, onLog }: { users: UserProfile[], empresas:
     }
   };
 
+  // Copia o link base do sistema para convite de novos usuarios.
   const copyInviteLink = () => {
     const inviteLink = window.location.origin;
     navigator.clipboard.writeText(inviteLink);
@@ -2010,6 +2107,7 @@ const UsersView = ({ users, empresas, onLog }: { users: UserProfile[], empresas:
     setIsInviting(false);
   };
 
+  // Renderiza a tabela reutilizavel de usuarios ativos ou pendentes.
   const UserTable = ({ data, title }: { data: UserProfile[], title: string }) => (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between px-2">
@@ -2262,8 +2360,9 @@ const UsersView = ({ users, empresas, onLog }: { users: UserProfile[], empresas:
   );
 };
 
+// Gera relatorios filtrados, totais consolidados e exportacao em PDF.
 const ReportsView = ({ pixRecords, users, empresas, banks }: { pixRecords: PixRecord[], users: UserProfile[], empresas: Empresa[], banks: Bank[] }) => {
-  const { profile, isAdmin, isPromoter, isCashier } = useAuth();
+  const { profile, isPromoter } = useAuth();
   
   // Input states
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -2287,6 +2386,7 @@ const ReportsView = ({ pixRecords, users, empresas, banks }: { pixRecords: PixRe
     minValor: 0
   });
 
+  // Aplica os filtros preenchidos para atualizar o relatorio exibido na tela.
   const handleGenerate = () => {
     setAppliedFilters({
       startDate,
@@ -2301,6 +2401,7 @@ const ReportsView = ({ pixRecords, users, empresas, banks }: { pixRecords: PixRe
     toast.success('Relatório gerado com sucesso!');
   };
 
+  // Restaura os filtros padrao conforme o perfil do usuario logado.
   const handleClear = () => {
     const defaultType = isPromoter ? 'pix_date' : 'confirmation';
     const defaultEmpresa = isPromoter ? profile?.company || '' : '';
@@ -2364,6 +2465,7 @@ const ReportsView = ({ pixRecords, users, empresas, banks }: { pixRecords: PixRe
     return acc;
   }, {} as Record<string, number>) : null;
 
+  // Exporta o relatorio atual para um arquivo PDF com resumo e detalhamento.
   const generatePDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(18);
@@ -2593,6 +2695,7 @@ const ReportsView = ({ pixRecords, users, empresas, banks }: { pixRecords: PixRe
   );
 };
 
+// Configura e executa sorteios com base nos registros elegiveis.
 const DrawsView = ({ pixRecords, draws, onLog }: { pixRecords: PixRecord[], draws: Draw[], onLog: (a: string, d: string) => void }) => {
   const { profile } = useAuth();
   const [isDrawing, setIsDrawing] = useState(false);
@@ -2630,6 +2733,7 @@ const DrawsView = ({ pixRecords, draws, onLog }: { pixRecords: PixRecord[], draw
     return !alreadyWon;
   });
 
+  // Atualiza o estado compartilhado do painel de TV durante o sorteio.
   const updateTVState = async (status: 'idle' | 'drawing' | 'result', winnerRecord?: PixRecord) => {
     try {
       await setDoc(doc(db, 'settings', 'tv_state'), {
@@ -2643,6 +2747,7 @@ const DrawsView = ({ pixRecords, draws, onLog }: { pixRecords: PixRecord[], draw
     }
   };
 
+  // Seleciona um vencedor aleatorio, grava o sorteio e sincroniza o painel de TV.
   const runDraw = async () => {
     if (eligibleRecords.length === 0) return;
     setIsDrawing(true);
@@ -2777,6 +2882,7 @@ const DrawsView = ({ pixRecords, draws, onLog }: { pixRecords: PixRecord[], draw
   );
 };
 
+// Exibe a tabela completa com o historico de sorteios realizados.
 const HistDrawsView = ({ draws }: { draws: Draw[] }) => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-6">
     <h3 className="text-xl font-bold text-gray-900">Histórico Completo de Sorteios</h3>
@@ -2817,12 +2923,14 @@ const HistDrawsView = ({ draws }: { draws: Draw[] }) => (
   </motion.div>
 );
 
+// Gerencia empresas e grupos empresariais usados no sistema.
 const EmpresasView = ({ empresas, businessGroups, onLog }: { empresas: Empresa[], businessGroups: BusinessGroup[], onLog: (a: string, d: string) => void }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isGroupFormOpen, setIsGroupFormOpen] = useState(false);
   const [editingEmpresa, setEditingEmpresa] = useState<Empresa | null>(null);
   const [editingGroup, setEditingGroup] = useState<BusinessGroup | null>(null);
 
+  // Salva uma empresa nova ou atualiza uma empresa existente.
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -2848,6 +2956,7 @@ const EmpresasView = ({ empresas, businessGroups, onLog }: { empresas: Empresa[]
     }
   };
 
+  // Salva um grupo empresarial novo ou atualiza o nome de um grupo existente.
   const handleSaveGroup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -3086,6 +3195,7 @@ const EmpresasView = ({ empresas, businessGroups, onLog }: { empresas: Empresa[]
   );
 };
 
+// Exibe a trilha de auditoria com data, usuario, acao e detalhes.
 const LogsView = ({ logs }: { logs: AuditLog[] }) => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-6">
     <h3 className="text-xl font-bold text-gray-900">Auditoria Completa</h3>
@@ -3122,6 +3232,7 @@ const LogsView = ({ logs }: { logs: AuditLog[] }) => (
   </motion.div>
 );
 
+// Inicializa os providers globais e renderiza a aplicacao principal.
 export default function App() {
   return (
     <AuthProvider>
