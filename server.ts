@@ -1,31 +1,63 @@
 ﻿import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
-import { initializeApp } from "firebase-admin/app";
+import { initializeApp, applicationDefault, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import fs from "fs";
 
 // Load Firebase config
 const firebaseConfig = JSON.parse(fs.readFileSync("./firebase-applet-config.json", "utf-8"));
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+const readJson = (filePath: string) => JSON.parse(fs.readFileSync(filePath, "utf-8"));
 
 // Initialize Firebase Admin
 let app;
 try {
+  if (serviceAccountPath) {
+    const absServicePath = path.resolve(process.cwd(), serviceAccountPath);
+    const serviceAccount = readJson(absServicePath);
+
+    app = initializeApp({
+      projectId: firebaseConfig.projectId,
+      credential: cert(serviceAccount),
+    });
+    console.log("Firebase Admin initialized with Service Account:", absServicePath);
+  } else {
+    app = initializeApp({
+      projectId: firebaseConfig.projectId,
+      credential: applicationDefault(),
+    });
+    console.log("Firebase Admin initialized with Application Default Credentials.");
+  }
+} catch (e) {
+  console.error("Error initializing Firebase Admin:", e);
   app = initializeApp({
     projectId: firebaseConfig.projectId
   });
-  console.log("Firebase Admin initialized with project ID:", firebaseConfig.projectId);
-} catch (e) {
-  console.error("Error initializing Firebase Admin:", e);
-  app = initializeApp(); // Fallback to default
 }
 
-const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
+const databaseId = firebaseConfig.firestoreDatabaseId || "(default)";
+const db = getFirestore(app, databaseId === "(default)" ? undefined : databaseId);
 db.settings({ ignoreUndefinedProperties: true });
-console.log("Firestore initialized with database ID:", firebaseConfig.firestoreDatabaseId || "(default)");
+const adminAuth = getAuth(app);
+console.log("Firestore initialized with database ID:", databaseId);
 const JWT_SECRET = process.env.JWT_SECRET || "gbf-smartpix-secret-2026";
+
+function getFriendlyServerError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (
+    message.includes("Could not load the default credentials") ||
+    message.includes("credential implementation provided to initializeApp() via the \"credential\" property failed to fetch")
+  ) {
+    return "Firebase Admin sem credenciais locais. Configure FIREBASE_SERVICE_ACCOUNT_PATH ou rode gcloud auth application-default login.";
+  }
+
+  return message;
+}
 
 async function startServer() {
   const app = express();
@@ -34,6 +66,17 @@ async function startServer() {
   app.use(express.json());
 
   // API Routes
+  app.get("/api/public/empresas", async (_req, res) => {
+    try {
+      const snap = await db.collection("empresas").where("active", "==", true).get();
+      const empresas = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+      res.json(empresas);
+    } catch (error) {
+      console.error("Public empresas error:", error);
+      res.status(500).json({ error: getFriendlyServerError(error) });
+    }
+  });
+
   app.post("/api/register", async (req, res) => {
     const { nome, usuario, senha, tipo, empresa_id } = req.body;
 
@@ -68,7 +111,7 @@ async function startServer() {
 
     } catch (error) {
       console.error("Registration error:", error);
-      res.status(500).json({ error: "Erro interno no servidor" });
+      res.status(500).json({ error: getFriendlyServerError(error) });
     }
   });
 
@@ -133,8 +176,15 @@ async function startServer() {
 
       await logLogin(usuario, true, "Sucesso", ip, dispositivo);
 
-      // Generate Firebase Custom Token
-      const token = jwt.sign(
+      // Gera um token customizado do Firebase para autenticar o cliente web.
+      const token = await adminAuth.createCustomToken(userDoc.id, {
+        tipo: userData.tipo,
+        role: userData.role,
+        empresa_id: userData.empresa_id || null,
+        grupo_empresa_id: userData.grupo_empresa_id || null
+      });
+
+      const sessionToken = jwt.sign(
         {
           id: userDoc.id,
           tipo: userData.tipo,
@@ -147,6 +197,7 @@ async function startServer() {
 
       res.json({ 
         token, 
+        sessionToken, 
         user: {
           id: userDoc.id,
           nome: userData.nome,
@@ -159,7 +210,7 @@ async function startServer() {
 
     } catch (error) {
       console.error("Login error:", error);
-      res.status(500).json({ error: "Erro interno no servidor" });
+      res.status(500).json({ error: getFriendlyServerError(error) });
     }
   });
 

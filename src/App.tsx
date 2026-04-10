@@ -368,6 +368,33 @@ function AppContent() {
     }
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    // Carrega empresas publicamente para o fluxo de cadastro antes do login.
+    const loadPublicEmpresas = async () => {
+      try {
+        const response = await fetch('/api/public/empresas');
+        if (!response.ok) {
+          throw new Error('Falha ao carregar empresas');
+        }
+
+        const data = await response.json();
+        if (isMounted && Array.isArray(data)) {
+          setEmpresas(data as Empresa[]);
+        }
+      } catch (error) {
+        console.error('Error loading public empresas:', error);
+      }
+    };
+
+    loadPublicEmpresas();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: 'Comprovante PIX',
