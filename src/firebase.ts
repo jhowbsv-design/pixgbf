@@ -17,7 +17,10 @@ import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const databaseId = firebaseConfig.firestoreDatabaseId || 'default';
+export const db = databaseId === 'default' || databaseId === '(default)'
+  ? getFirestore(app)
+  : getFirestore(app, databaseId);
 export const auth = getAuth(app);
 
 // Set persistence to local (JWT + persistent session)

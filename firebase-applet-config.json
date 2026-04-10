@@ -3,7 +3,7 @@
   "appId": "1:29679922943:web:5e6824e5a36cc0d91726ca",
   "apiKey": "AIzaSyDTYnZAtPY2I4CHIWu4pgl-UV8gsTgqOZQ",
   "authDomain": "sistema-de-cad-e-cont-de-pix.firebaseapp.com",
-  "firestoreDatabaseId": "(default)",
+  "firestoreDatabaseId": "default",
   "storageBucket": "sistema-de-cad-e-cont-de-pix.firebasestorage.app",
   "messagingSenderId": "29679922943",
   "measurementId": ""

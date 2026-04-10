@@ -10,3 +10,5 @@ coverage/
 npm-debug.log
 fix-app.js
 *.patch
+service-account.json
+secrets/

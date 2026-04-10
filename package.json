@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "seed:firestore": "node scripts/seed-firestore.js"
+    "seed:firestore": "node scripts/seed-firestore.cjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

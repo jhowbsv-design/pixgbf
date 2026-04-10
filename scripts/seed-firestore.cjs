@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 const fs = require('fs');
 const path = require('path');
@@ -38,8 +38,10 @@ async function main() {
     console.log('✅ Firebase Admin inicializado com Application Default Credentials (ADC).');
   }
 
-  const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
-  const db = getFirestore(app, databaseId === '(default)' ? undefined : databaseId);
+  const databaseId = firebaseConfig.firestoreDatabaseId || 'default';
+  const db = databaseId === 'default' || databaseId === '(default)'
+    ? getFirestore(app)
+    : getFirestore(app, databaseId);
   db.settings({ ignoreUndefinedProperties: true });
 
   const tvState = {

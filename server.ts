@@ -10,14 +10,17 @@ import fs from "fs";
 
 // Load Firebase config
 const firebaseConfig = JSON.parse(fs.readFileSync("./firebase-applet-config.json", "utf-8"));
-const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+const defaultServiceAccountPath = path.resolve(process.cwd(), "secrets", "service-account.json");
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || (fs.existsSync(defaultServiceAccountPath) ? defaultServiceAccountPath : "");
 const readJson = (filePath: string) => JSON.parse(fs.readFileSync(filePath, "utf-8"));
 
 // Initialize Firebase Admin
 let app;
 try {
   if (serviceAccountPath) {
-    const absServicePath = path.resolve(process.cwd(), serviceAccountPath);
+    const absServicePath = path.isAbsolute(serviceAccountPath)
+      ? serviceAccountPath
+      : path.resolve(process.cwd(), serviceAccountPath);
     const serviceAccount = readJson(absServicePath);
 
     app = initializeApp({
@@ -39,8 +42,10 @@ try {
   });
 }
 
-const databaseId = firebaseConfig.firestoreDatabaseId || "(default)";
-const db = getFirestore(app, databaseId === "(default)" ? undefined : databaseId);
+const databaseId = firebaseConfig.firestoreDatabaseId || "default";
+const db = databaseId === "default" || databaseId === "(default)"
+  ? getFirestore(app)
+  : getFirestore(app, databaseId);
 db.settings({ ignoreUndefinedProperties: true });
 const adminAuth = getAuth(app);
 console.log("Firestore initialized with database ID:", databaseId);
