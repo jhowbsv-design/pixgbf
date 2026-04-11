@@ -42,14 +42,18 @@ try {
   });
 }
 
-const databaseId = firebaseConfig.firestoreDatabaseId || "default";
-const db = databaseId === "default" || databaseId === "(default)"
+const databaseId = firebaseConfig.firestoreDatabaseId || "(default)";
+const db = databaseId === "(default)"
   ? getFirestore(app)
   : getFirestore(app, databaseId);
 db.settings({ ignoreUndefinedProperties: true });
 const adminAuth = getAuth(app);
 console.log("Firestore initialized with database ID:", databaseId);
 const JWT_SECRET = process.env.JWT_SECRET || "gbf-smartpix-secret-2026";
+
+function normalizeUsuario(value: unknown) {
+  return String(value || "").trim().toLowerCase();
+}
 
 function getFriendlyServerError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -84,14 +88,20 @@ async function startServer() {
 
   app.post("/api/register", async (req, res) => {
     const { nome, usuario, senha, tipo, empresa_id } = req.body;
+    const usuarioNormalizado = normalizeUsuario(usuario);
 
-    if (!nome || !usuario || !senha || !tipo) {
+    if (!nome || !usuarioNormalizado || !senha || !tipo) {
       return res.status(400).json({ error: "Campos obrigatÃ³rios ausentes" });
     }
 
     try {
-      const existing = await db.collection("users").where("usuario", "==", usuario).get();
+      const existing = await db.collection("users").where("usuario_normalized", "==", usuarioNormalizado).limit(1).get();
       if (!existing.empty) {
+        return res.status(400).json({ error: "UsuÃ¡rio jÃ¡ existe" });
+      }
+
+      const existingLegacy = await db.collection("users").where("usuario", "==", usuario).limit(1).get();
+      if (!existingLegacy.empty) {
         return res.status(400).json({ error: "UsuÃ¡rio jÃ¡ existe" });
       }
 
@@ -100,6 +110,7 @@ async function startServer() {
         nome,
         displayName: nome,
         usuario,
+        usuario_normalized: usuarioNormalizado,
         senha_hash,
         role: tipo,
         tipo,
@@ -122,35 +133,57 @@ async function startServer() {
 
   app.post("/api/login", async (req, res) => {
     const { usuario, senha } = req.body;
+    const usuarioNormalizado = normalizeUsuario(usuario);
     const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
     const dispositivo = req.headers["user-agent"];
 
-    if (!usuario || !senha) {
+    if (!usuarioNormalizado || !senha) {
       return res.status(400).json({ error: "UsuÃ¡rio e senha sÃ£o obrigatÃ³rios" });
     }
 
     try {
-      const userSnap = await db.collection("users").where("usuario", "==", usuario).limit(1).get();
+      let userSnap = await db.collection("users").where("usuario_normalized", "==", usuarioNormalizado).limit(1).get();
+      if (userSnap.empty) {
+        userSnap = await db.collection("users").where("usuario", "==", usuario).limit(1).get();
+      }
+      if (userSnap.empty) {
+        const allUsersSnap = await db.collection("users").limit(200).get();
+        const matchedDoc = allUsersSnap.docs.find((item) => {
+          const data = item.data();
+          return normalizeUsuario(data.usuario) === usuarioNormalizado;
+        });
+
+        if (matchedDoc) {
+          userSnap = {
+            empty: false,
+            docs: [matchedDoc],
+          } as typeof userSnap;
+        }
+      }
       
       if (userSnap.empty) {
-        await logLogin(usuario, false, "UsuÃ¡rio nÃ£o encontrado", ip, dispositivo);
+        await logLogin(usuarioNormalizado, false, "UsuÃ¡rio nÃ£o encontrado", ip, dispositivo);
         return res.status(401).json({ error: "Credenciais invÃ¡lidas" });
       }
 
       const userDoc = userSnap.docs[0];
       const userData = userDoc.data();
 
+      if (!userData.usuario_normalized && userData.usuario) {
+        await userDoc.ref.update({ usuario_normalized: normalizeUsuario(userData.usuario) });
+      }
+
       // Check if active
-      if (!userData.ativo) {
-        await logLogin(usuario, false, "UsuÃ¡rio inativo", ip, dispositivo);
-        return res.status(403).json({ error: "UsuÃ¡rio inativo" });
+      if (userData.ativo === false || userData.active === false) {
+        await logLogin(usuarioNormalizado, false, "Usuário aguardando aprovação", ip, dispositivo);
+        return res.status(403).json({ error: "Seu cadastro está aguardando aprovação do administrador." });
       }
 
       // Check if blocked
       if (userData.bloqueado_ate) {
         const blockedUntil = new Date(userData.bloqueado_ate);
         if (blockedUntil > new Date()) {
-          await logLogin(usuario, false, "UsuÃ¡rio bloqueado temporariamente", ip, dispositivo);
+          await logLogin(usuarioNormalizado, false, "UsuÃ¡rio bloqueado temporariamente", ip, dispositivo);
           return res.status(403).json({ error: `UsuÃ¡rio bloqueado atÃ© ${blockedUntil.toLocaleString()}` });
         }
       }
@@ -168,7 +201,7 @@ async function startServer() {
         }
 
         await userDoc.ref.update(updates);
-        await logLogin(usuario, false, "Senha incorreta", ip, dispositivo);
+        await logLogin(usuarioNormalizado, false, "Senha incorreta", ip, dispositivo);
         return res.status(401).json({ error: "Credenciais invÃ¡lidas" });
       }
 
@@ -179,7 +212,7 @@ async function startServer() {
         ultimo_login: new Date().toISOString(),
       });
 
-      await logLogin(usuario, true, "Sucesso", ip, dispositivo);
+      await logLogin(usuarioNormalizado, true, "Sucesso", ip, dispositivo);
 
       // Gera um token customizado do Firebase para autenticar o cliente web.
       const token = await adminAuth.createCustomToken(userDoc.id, {
@@ -222,9 +255,10 @@ async function startServer() {
   // Admin User Management API
   app.post("/api/users", async (req, res) => {
     const { nome, usuario, senha, tipo, empresa_id, grupo_empresa_id } = req.body;
+    const usuarioNormalizado = normalizeUsuario(usuario);
     const authHeader = req.headers.authorization;
 
-    if (!nome || !usuario || !senha || !tipo) {
+    if (!nome || !usuarioNormalizado || !senha || !tipo) {
       return res.status(400).json({ error: "Campos obrigatÃ³rios ausentes (nome, usuario, senha, tipo)" });
     }
 
@@ -234,13 +268,14 @@ async function startServer() {
       const decoded: any = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
       if (decoded.tipo !== "ADM") return res.status(403).json({ error: "Acesso negado" });
 
-      const existing = await db.collection("users").where("usuario", "==", usuario).get();
+      const existing = await db.collection("users").where("usuario_normalized", "==", usuarioNormalizado).limit(1).get();
       if (!existing.empty) return res.status(400).json({ error: "UsuÃ¡rio jÃ¡ existe" });
 
       const senha_hash = await bcrypt.hash(senha, 10);
       const newUser = {
         nome,
         usuario,
+        usuario_normalized: usuarioNormalizado,
         senha_hash,
         tipo,
         empresa_id,

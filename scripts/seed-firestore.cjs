@@ -15,12 +15,15 @@ async function main() {
   const repoRoot = path.resolve(__dirname, '..');
   const firebaseConfigPath = path.join(repoRoot, 'firebase-applet-config.json');
   const firebaseConfig = readJson(firebaseConfigPath);
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  const defaultServiceAccountPath = path.join(repoRoot, 'secrets', 'service-account.json');
+  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || (fs.existsSync(defaultServiceAccountPath) ? defaultServiceAccountPath : '');
 
   let app;
 
   if (serviceAccountPath) {
-    const absServicePath = path.resolve(process.cwd(), serviceAccountPath);
+    const absServicePath = path.isAbsolute(serviceAccountPath)
+      ? serviceAccountPath
+      : path.resolve(process.cwd(), serviceAccountPath);
     const serviceAccount = readJson(absServicePath);
 
     app = initializeApp({
@@ -38,8 +41,8 @@ async function main() {
     console.log('✅ Firebase Admin inicializado com Application Default Credentials (ADC).');
   }
 
-  const databaseId = firebaseConfig.firestoreDatabaseId || 'default';
-  const db = databaseId === 'default' || databaseId === '(default)'
+  const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+  const db = databaseId === '(default)'
     ? getFirestore(app)
     : getFirestore(app, databaseId);
   db.settings({ ignoreUndefinedProperties: true });

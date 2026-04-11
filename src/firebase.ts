@@ -17,8 +17,8 @@ import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
-const databaseId = firebaseConfig.firestoreDatabaseId || 'default';
-export const db = databaseId === 'default' || databaseId === '(default)'
+const databaseId = firebaseConfig.firestoreDatabaseId || '(default)';
+export const db = databaseId === '(default)'
   ? getFirestore(app)
   : getFirestore(app, databaseId);
 export const auth = getAuth(app);
